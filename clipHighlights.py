@@ -3,6 +3,7 @@ import os
 import re
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor
 
 from moviepy.video.io.ffmpeg_tools import ffmpeg_extract_subclip
 from pytube import YouTube
@@ -36,9 +37,14 @@ def linkToGameInfo(linkStr):
     titlePattern = re.compile(r"(\[)(.*?)(\])")
     urlPattern = re.compile(r"(\()(.*?)(\))")
     title = titlePattern.search(linkStr)
-    url = urlPattern.search(linkStr)
-    if title is not None and url is not None:
-        return (title.group(2), url.group(2))
+
+    if title is not None:
+        secondStr = linkStr[title.end() :]
+        url = urlPattern.search(secondStr)
+        if url is not None:
+            return (title.group(2), url.group(2))
+        else:  # TODO: fix error handling
+            raise IndexError(f"Title and URL parsing failed for {linkStr}.")
     else:
         raise IndexError(f"Title and URL parsing failed for {linkStr}.")
 
@@ -52,7 +58,7 @@ def downloadVideo(url, outputFile, outputPath=None):
         stream.download(output_path=outputPath, filename=outputFile)
         print(f"{yt.title} successfully downloaded.")
     else:
-        print(f"No streams found for {yt.title}.")
+        raise Exception(f"No streams found for {yt.title}.")
 
 
 def makeClipsFromFilm(outputPath, filmFilename, timestamps):
@@ -75,9 +81,8 @@ def makeClipsFromFilm(outputPath, filmFilename, timestamps):
         )
 
 
-def main():
-    with open(sys.argv[1]) as f:
-        highlights = json.load(f)
+def createDirectories(highlights):
+    print("Creating film directories.")
 
     # mainKey is top-level key (usually just says "season highlights")
     mainKey, tournaments = list(highlights.items())[0]
@@ -90,19 +95,86 @@ def main():
         tournamentPath = os.path.join(mainDirectory, stringToFilename(tournament))
         os.makedirs(tournamentPath)
 
-        for gameLink, timestamps in games.items():
-            gameName, gameUrl = linkToGameInfo(gameLink)
-
-            print(f"\n------------\n\nProcessing {gameName} game from {tournament}:\n")
+        for gameLink in games:
+            gameName, _ = linkToGameInfo(gameLink)
 
             gameName = stringToFilename(gameName)
             gamePath = os.path.join(tournamentPath, gameName)
 
-            os.makedirs(gamePath)
-            filmFile = f"{gameName}.mp4"
+            print(f"Creating {gamePath} directory.")
 
-            downloadVideo(gameUrl, filmFile, gamePath)
+            os.makedirs(gamePath)
+
+
+def downloadFullGames(highlights, threading=True):
+    mainKey, tournaments = list(highlights.items())[0]
+    mainDirectory = stringToFilename(mainKey)
+
+    if threading:
+        print("Downloading full games using multiple threads.")
+    else:
+        print("Downloading full games sequentially.")
+
+    with ThreadPoolExecutor() as executor:
+        for tournament, games in tournaments.items():
+            tournamentPath = os.path.join(mainDirectory, stringToFilename(tournament))
+
+            for gameLink in games:
+                gameName, gameURL = linkToGameInfo(gameLink)
+                gameName = stringToFilename(gameName)
+                gamePath = os.path.join(tournamentPath, gameName)
+                filmFile = f"{gameName}.mp4"
+                if threading:
+                    executor.submit(
+                        downloadVideo, gameURL, filmFile, outputPath=gamePath
+                    )
+                else:
+                    downloadVideo(gameURL, filmFile, outputPath=gamePath)
+
+
+def clipAllHighlights(highlights):
+    mainKey, tournaments = list(highlights.items())[0]
+    mainDirectory = stringToFilename(mainKey)
+
+    for tournament, games in tournaments.items():
+        tournamentPath = os.path.join(mainDirectory, stringToFilename(tournament))
+
+        for gameLink, timestamps in games.items():
+            gameName, _ = linkToGameInfo(gameLink)
+
+            print(f"Clipping {gameName} highlights from {tournament}:")
+
+            gameName = stringToFilename(gameName)
+            gamePath = os.path.join(tournamentPath, gameName)
+            filmFile = f"{gameName}.mp4"
             makeClipsFromFilm(gamePath, filmFile, timestamps)
+
+
+def deleteFullGameFiles(highlights):
+    mainKey, tournaments = list(highlights.items())[0]
+    mainDirectory = stringToFilename(mainKey)
+
+    for tournament, games in tournaments.items():
+        tournamentPath = os.path.join(mainDirectory, stringToFilename(tournament))
+
+        for gameLink in games:
+            gameName, _ = linkToGameInfo(gameLink)
+
+            gameName = stringToFilename(gameName)
+            gamePath = os.path.join(tournamentPath, gameName)
+            filmFile = os.path.join(gamePath, f"{gameName}.mp4")
+            print(f"Deleting {filmFile}.")
+            os.remove(filmFile)
+
+
+def main():
+    with open(sys.argv[1]) as f:
+        highlights = json.load(f)
+
+    # TODO: turn this into a class and have highlights be a member variable
+    createDirectories(highlights)
+    downloadFullGames(highlights)
+    clipAllHighlights(highlights)
 
 
 if __name__ == "__main__":
