@@ -9,3 +9,4 @@
 ### TODO:
 
 - write Markdown format for highlights
+- write automatic check to recommend saveStorage if not enough disk space

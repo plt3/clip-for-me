@@ -23,6 +23,7 @@ class TraversalType(Enum):
     DOWNLOAD_FULL_GAMES = 2
     CLIP_HIGHLIGHTS = 3
     DELETE_FULL_GAMES = 4
+    SAVE_STORAGE = 5
 
 
 def stringToFilename(str):
@@ -90,6 +91,11 @@ def makeClipsFromFilm(outputPath, filmFilename, timestamps):
 
 
 def traverseHighlights(highlights, traversalType, threading=True):
+    saveStorage = False
+    if traversalType == TraversalType.SAVE_STORAGE:
+        saveStorage = True
+        threading = False
+
     mainKey, tournaments = list(highlights.items())[0]
     mainDirectory = stringToFilename(mainKey)
 
@@ -107,10 +113,11 @@ def traverseHighlights(highlights, traversalType, threading=True):
                 gamePath = os.path.join(tournamentPath, gameName)
                 filmFile = f"{gameName}.mp4"
 
-                if traversalType == TraversalType.CREATE_DIRS:
+                if traversalType == TraversalType.CREATE_DIRS or saveStorage:
                     print(f"Creating {gamePath} directory.")
                     os.makedirs(gamePath)
-                elif traversalType == TraversalType.DOWNLOAD_FULL_GAMES:
+
+                if traversalType == TraversalType.DOWNLOAD_FULL_GAMES or saveStorage:
                     if threading:
                         # create and start thread to download game
                         executor.submit(
@@ -119,10 +126,12 @@ def traverseHighlights(highlights, traversalType, threading=True):
                     else:
                         # download game sequentially (will take much longer)
                         downloadVideo(gameURL, filmFile, outputPath=gamePath)
-                elif traversalType == TraversalType.CLIP_HIGHLIGHTS:
+
+                if traversalType == TraversalType.CLIP_HIGHLIGHTS or saveStorage:
                     print(f"Clipping {gameName} highlights from {tournament}:")
                     makeClipsFromFilm(gamePath, filmFile, timestamps)
-                elif traversalType == TraversalType.DELETE_FULL_GAMES:
+
+                if traversalType == TraversalType.DELETE_FULL_GAMES or saveStorage:
                     filmFilePath = os.path.join(gamePath, filmFile)
                     print(f"Deleting {filmFilePath}.")
                     os.remove(filmFilePath)
@@ -136,6 +145,8 @@ def main():
     traverseHighlights(highlights, TraversalType.CREATE_DIRS)
     traverseHighlights(highlights, TraversalType.DOWNLOAD_FULL_GAMES)
     traverseHighlights(highlights, TraversalType.CLIP_HIGHLIGHTS)
+
+    # traverseHighlights(highlights, TraversalType.SAVE_STORAGE)
 
 
 if __name__ == "__main__":
