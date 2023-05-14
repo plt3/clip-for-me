@@ -4,6 +4,7 @@ import re
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
+from enum import Enum
 
 from moviepy.video.io.ffmpeg_tools import ffmpeg_extract_subclip
 from pytube import YouTube
@@ -15,6 +16,13 @@ HIGHLIGHT_CLIP_LENGTH = 10
 HIGHLIGHT_CLIP_OFFSET = 2
 # number of words from timestamp description to include in the clip's filename
 CLIP_NUM_WORDS = 4
+
+
+class TraversalType(Enum):
+    CREATE_DIRS = 1
+    DOWNLOAD_FULL_GAMES = 2
+    CLIP_HIGHLIGHTS = 3
+    DELETE_FULL_GAMES = 4
 
 
 def stringToFilename(str):
@@ -81,90 +89,43 @@ def makeClipsFromFilm(outputPath, filmFilename, timestamps):
         )
 
 
-def createDirectories(highlights):
-    print("Creating film directories.")
-
-    # mainKey is top-level key (usually just says "season highlights")
+def traverseHighlights(highlights, traversalType, threading=True):
     mainKey, tournaments = list(highlights.items())[0]
     mainDirectory = stringToFilename(mainKey)
 
-    if not os.path.exists(mainDirectory):
-        os.makedirs(mainDirectory)
-
-    for tournament, games in tournaments.items():
-        tournamentPath = os.path.join(mainDirectory, stringToFilename(tournament))
-        os.makedirs(tournamentPath)
-
-        for gameLink in games:
-            gameName, _ = linkToGameInfo(gameLink)
-
-            gameName = stringToFilename(gameName)
-            gamePath = os.path.join(tournamentPath, gameName)
-
-            print(f"Creating {gamePath} directory.")
-
-            os.makedirs(gamePath)
-
-
-def downloadFullGames(highlights, threading=True):
-    mainKey, tournaments = list(highlights.items())[0]
-    mainDirectory = stringToFilename(mainKey)
-
-    if threading:
-        print("Downloading full games using multiple threads.")
-    else:
-        print("Downloading full games sequentially.")
-
+    # to use threading when downloading full games
     with ThreadPoolExecutor() as executor:
+        # loop through tournaments
         for tournament, games in tournaments.items():
             tournamentPath = os.path.join(mainDirectory, stringToFilename(tournament))
 
-            for gameLink in games:
+            # loop through games in tournament
+            for gameLink, timestamps in games.items():
                 gameName, gameURL = linkToGameInfo(gameLink)
+
                 gameName = stringToFilename(gameName)
                 gamePath = os.path.join(tournamentPath, gameName)
                 filmFile = f"{gameName}.mp4"
-                if threading:
-                    executor.submit(
-                        downloadVideo, gameURL, filmFile, outputPath=gamePath
-                    )
-                else:
-                    downloadVideo(gameURL, filmFile, outputPath=gamePath)
 
-
-def clipAllHighlights(highlights):
-    mainKey, tournaments = list(highlights.items())[0]
-    mainDirectory = stringToFilename(mainKey)
-
-    for tournament, games in tournaments.items():
-        tournamentPath = os.path.join(mainDirectory, stringToFilename(tournament))
-
-        for gameLink, timestamps in games.items():
-            gameName, _ = linkToGameInfo(gameLink)
-
-            print(f"Clipping {gameName} highlights from {tournament}:")
-
-            gameName = stringToFilename(gameName)
-            gamePath = os.path.join(tournamentPath, gameName)
-            filmFile = f"{gameName}.mp4"
-            makeClipsFromFilm(gamePath, filmFile, timestamps)
-
-
-def deleteFullGameFiles(highlights):
-    mainKey, tournaments = list(highlights.items())[0]
-    mainDirectory = stringToFilename(mainKey)
-
-    for tournament, games in tournaments.items():
-        tournamentPath = os.path.join(mainDirectory, stringToFilename(tournament))
-
-        for gameLink in games:
-            gameName, _ = linkToGameInfo(gameLink)
-
-            gameName = stringToFilename(gameName)
-            gamePath = os.path.join(tournamentPath, gameName)
-            filmFile = os.path.join(gamePath, f"{gameName}.mp4")
-            print(f"Deleting {filmFile}.")
-            os.remove(filmFile)
+                if traversalType == TraversalType.CREATE_DIRS:
+                    print(f"Creating {gamePath} directory.")
+                    os.makedirs(gamePath)
+                elif traversalType == TraversalType.DOWNLOAD_FULL_GAMES:
+                    if threading:
+                        # create and start thread to download game
+                        executor.submit(
+                            downloadVideo, gameURL, filmFile, outputPath=gamePath
+                        )
+                    else:
+                        # download game sequentially (will take much longer)
+                        downloadVideo(gameURL, filmFile, outputPath=gamePath)
+                elif traversalType == TraversalType.CLIP_HIGHLIGHTS:
+                    print(f"Clipping {gameName} highlights from {tournament}:")
+                    makeClipsFromFilm(gamePath, filmFile, timestamps)
+                elif traversalType == TraversalType.DELETE_FULL_GAMES:
+                    filmFilePath = os.path.join(gamePath, filmFile)
+                    print(f"Deleting {filmFilePath}.")
+                    os.remove(filmFilePath)
 
 
 def main():
@@ -172,9 +133,9 @@ def main():
         highlights = json.load(f)
 
     # TODO: turn this into a class and have highlights be a member variable
-    createDirectories(highlights)
-    downloadFullGames(highlights)
-    clipAllHighlights(highlights)
+    traverseHighlights(highlights, TraversalType.CREATE_DIRS)
+    traverseHighlights(highlights, TraversalType.DOWNLOAD_FULL_GAMES)
+    traverseHighlights(highlights, TraversalType.CLIP_HIGHLIGHTS)
 
 
 if __name__ == "__main__":
