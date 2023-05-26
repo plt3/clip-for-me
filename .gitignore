@@ -5,4 +5,5 @@ venv
 data
 test.py
 *.mp4
+*.m4a
 *.json

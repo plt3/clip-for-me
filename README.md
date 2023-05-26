@@ -10,3 +10,7 @@
 
 - write Markdown format for highlights
 - write automatic check to recommend saveStorage if not enough disk space
+- make backup file that updates while downloads are happening so program can start from
+  middle if there was a crash
+  - instead of this, make script check filesystem and not download/edit clips that are
+    already present (so it can be run multiple times in a row with crashes and be fine)

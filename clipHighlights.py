@@ -7,7 +7,7 @@ from concurrent.futures import ThreadPoolExecutor
 from enum import Enum
 
 from moviepy.video.io.ffmpeg_tools import ffmpeg_extract_subclip
-from pytube import YouTube
+from yt_dlp import YoutubeDL
 
 # length of each highlight clip in seconds
 HIGHLIGHT_CLIP_LENGTH = 10
@@ -37,7 +37,8 @@ def stringToFilename(str):
         elif character.isalnum() or character == "-":
             retStr += character
 
-    return retStr
+    # return just an underscore if there are no safe characters in the string
+    return retStr or "_"
 
 
 def linkToGameInfo(linkStr):
@@ -58,23 +59,24 @@ def linkToGameInfo(linkStr):
         raise IndexError(f"Title and URL parsing failed for {linkStr}.")
 
 
-def downloadVideo(url, outputFile, outputPath=None):
-    yt = YouTube(url)
-    stream = yt.streams.get_highest_resolution()
-
-    if stream is not None:
-        print(f"Beginning download of {yt.title}, this may take a while...")
-        stream.download(output_path=outputPath, filename=outputFile)
-        print(f"{yt.title} successfully downloaded.")
-    else:
-        raise Exception(f"No streams found for {yt.title}.")
+def downloadVideo(url, outputFile, outputPath=""):
+    # note that this does not raise an exception if the download fails (but it does
+    # print that it failed in the output)
+    opts = {
+        "format": "mp4",
+        "outtmpl": {"default": outputFile},
+        "paths": {"home": outputPath},
+    }
+    with YoutubeDL(opts) as ydl:
+        ydl.download(url)
 
 
 def makeClipsFromFilm(outputPath, filmFilename, timestamps):
     filmFullPath = os.path.join(outputPath, filmFilename)
 
     for timestampStr in timestamps:
-        timestamp, description = tuple(timestampStr.split("- "))
+        # only split at the first occurrence of "- "
+        timestamp, description = tuple(timestampStr.split("- ", 1))
         timeObj = time.strptime(timestamp, "%M:%S")
         seconds = timeObj.tm_min * 60 + timeObj.tm_sec - HIGHLIGHT_CLIP_OFFSET
         firstNDescriptionWords = " ".join(description.split(" ")[:CLIP_NUM_WORDS])
