@@ -67,8 +67,17 @@ def downloadVideo(url, outputFile, outputPath=""):
         "outtmpl": {"default": outputFile},
         "paths": {"home": outputPath},
     }
-    with YoutubeDL(opts) as ydl:
-        ydl.download(url)
+    fullPath = os.path.join(outputPath, outputFile)
+    print(f"Beginning download of {fullPath}, this may take a while...")
+
+    try:
+        with YoutubeDL(opts) as ydl:
+            ydl.download(url)
+        print(f"{fullPath} successfully downloaded.")
+    except Exception:
+        print(
+            f"Error downloading {fullPath}. This game will be skipped when clipping highlights."
+        )
 
 
 def makeClipsFromFilm(outputPath, filmFilename, timestamps):
@@ -82,14 +91,19 @@ def makeClipsFromFilm(outputPath, filmFilename, timestamps):
         firstNDescriptionWords = " ".join(description.split(" ")[:CLIP_NUM_WORDS])
         clipName = stringToFilename(firstNDescriptionWords) + ".mp4"
         clipFullPath = os.path.join(outputPath, clipName)
-        print(f"Writing {clipFullPath}")
 
-        ffmpeg_extract_subclip(
-            filmFullPath,
-            seconds,
-            seconds + HIGHLIGHT_CLIP_LENGTH,
-            targetname=clipFullPath,
-        )
+        # don't clip highlight if it has already been done previously
+        if not os.path.exists(clipFullPath):
+            print(f"Writing {clipFullPath}")
+
+            ffmpeg_extract_subclip(
+                filmFullPath,
+                seconds,
+                seconds + HIGHLIGHT_CLIP_LENGTH,
+                targetname=clipFullPath,
+            )
+        else:
+            print(f"Skipping {clipFullPath} because it already exists")
 
 
 def traverseHighlights(highlights, traversalType, threading=True):
@@ -114,29 +128,44 @@ def traverseHighlights(highlights, traversalType, threading=True):
                 gameName = stringToFilename(gameName)
                 gamePath = os.path.join(tournamentPath, gameName)
                 filmFile = f"{gameName}.mp4"
+                fullFilmPath = os.path.join(gamePath, filmFile)
 
                 if traversalType == TraversalType.CREATE_DIRS or saveStorage:
-                    print(f"Creating {gamePath} directory.")
-                    os.makedirs(gamePath)
+                    if not os.path.exists(gamePath):
+                        print(f"Creating {gamePath} directory.")
+                        os.makedirs(gamePath)
 
                 if traversalType == TraversalType.DOWNLOAD_FULL_GAMES or saveStorage:
-                    if threading:
-                        # create and start thread to download game
-                        executor.submit(
-                            downloadVideo, gameURL, filmFile, outputPath=gamePath
-                        )
+                    # don't try to download video if it has already previously been
+                    # downloaded (yt-dlp already has this functionality but best to
+                    # avoid starting a new thread altogether)
+                    if not os.path.exists(fullFilmPath):
+                        if threading:
+                            # create and start thread to download game
+                            executor.submit(
+                                downloadVideo, gameURL, filmFile, outputPath=gamePath
+                            )
+                        else:
+                            # download game sequentially (will take much longer)
+                            downloadVideo(gameURL, filmFile, outputPath=gamePath)
                     else:
-                        # download game sequentially (will take much longer)
-                        downloadVideo(gameURL, filmFile, outputPath=gamePath)
-
+                        print(f"{fullFilmPath} already exists, skipping download")
                 if traversalType == TraversalType.CLIP_HIGHLIGHTS or saveStorage:
-                    print(f"Clipping {gameName} highlights from {tournament}:")
-                    makeClipsFromFilm(gamePath, filmFile, timestamps)
+                    # don't try to clip highlights if full game film is not in directory
+                    # (presumably due to issue with download)
+                    if os.path.exists(fullFilmPath):
+                        print(f"Clipping highlights from {fullFilmPath}:")
+                        makeClipsFromFilm(gamePath, filmFile, timestamps)
+                    else:
+                        print(
+                            f"{fullFilmPath} not found, skipping clipping highlights..."
+                        )
 
                 if traversalType == TraversalType.DELETE_FULL_GAMES or saveStorage:
                     filmFilePath = os.path.join(gamePath, filmFile)
-                    print(f"Deleting {filmFilePath}.")
-                    os.remove(filmFilePath)
+                    if os.path.exists(filmFilePath):
+                        print(f"Deleting {filmFilePath}.")
+                        os.remove(filmFilePath)
 
 
 def main():
