@@ -1,183 +1,135 @@
 import json
 import os
-import re
 import sys
-import time
 from concurrent.futures import ThreadPoolExecutor
-from enum import Enum
 
-from moviepy.video.io.ffmpeg_tools import ffmpeg_extract_subclip
-from yt_dlp import YoutubeDL
-
-# length of each highlight clip in seconds
-HIGHLIGHT_CLIP_LENGTH = 10
-# offset from the marked timestamp to start a highlight in seconds
-# (so a value of 2 means start the clip 2 seconds before the marked timestamp)
-HIGHLIGHT_CLIP_OFFSET = 2
-# number of words from timestamp description to include in the clip's filename
-CLIP_NUM_WORDS = 4
+from constants import CLIP_DELIMITER, TraversalType
+from errors import JSONParseError
+from utils import (
+    downloadVideo,
+    linkToGameInfo,
+    makeClipsFromFilm,
+    parseTimeAndDescription,
+    stringToFilename,
+)
 
 
-class TraversalType(Enum):
-    CREATE_DIRS = 1
-    DOWNLOAD_FULL_GAMES = 2
-    CLIP_HIGHLIGHTS = 3
-    DELETE_FULL_GAMES = 4
-    SAVE_STORAGE = 5
+class ClipHighlights:
+    def __init__(self, highlights):
+        self.highlights = highlights
+        self.__validateJSON()
 
+    @classmethod
+    def fromFile(cls, filePath):
+        with open(filePath) as f:
+            return cls(json.load(f))
 
-def stringToFilename(str):
-    """Convert arbitrary string to filename-safe representation (i.e. no spaces or non-ASCII characters)"""
-
-    retStr = ""
-
-    for character in str:
-        if character == " ":
-            retStr += "_"
-        elif character.isalnum() or character == "-":
-            retStr += character
-
-    # return just an underscore if there are no safe characters in the string
-    return retStr or "_"
-
-
-def linkToGameInfo(linkStr):
-    """Return tuple of the form (link name, link address) from Markdown link"""
-
-    titlePattern = re.compile(r"(\[)(.*?)(\])")
-    urlPattern = re.compile(r"(\()(.*?)(\))")
-    title = titlePattern.search(linkStr)
-
-    if title is not None:
-        secondStr = linkStr[title.end() :]
-        url = urlPattern.search(secondStr)
-        if url is not None:
-            return (title.group(2), url.group(2))
-        else:  # TODO: fix error handling
-            raise IndexError(f"Title and URL parsing failed for {linkStr}.")
-    else:
-        raise IndexError(f"Title and URL parsing failed for {linkStr}.")
-
-
-def downloadVideo(url, outputFile, outputPath=""):
-    # note that this does not raise an exception if the download fails (but it does
-    # print that it failed in the output)
-    opts = {
-        "format": "mp4",
-        "outtmpl": {"default": outputFile},
-        "paths": {"home": outputPath},
-    }
-    fullPath = os.path.join(outputPath, outputFile)
-    print(f"Beginning download of {fullPath}, this may take a while...")
-
-    try:
-        with YoutubeDL(opts) as ydl:
-            ydl.download(url)
-        print(f"{fullPath} successfully downloaded.")
-    except Exception:
-        print(
-            f"Error downloading {fullPath}. This game will be skipped when clipping highlights."
-        )
-
-
-def makeClipsFromFilm(outputPath, filmFilename, timestamps):
-    filmFullPath = os.path.join(outputPath, filmFilename)
-
-    for timestampStr in timestamps:
-        # only split at the first occurrence of "- "
-        timestamp, description = tuple(timestampStr.split("- ", 1))
-        timeObj = time.strptime(timestamp, "%M:%S")
-        seconds = timeObj.tm_min * 60 + timeObj.tm_sec - HIGHLIGHT_CLIP_OFFSET
-        firstNDescriptionWords = " ".join(description.split(" ")[:CLIP_NUM_WORDS])
-        clipName = stringToFilename(firstNDescriptionWords) + ".mp4"
-        clipFullPath = os.path.join(outputPath, clipName)
-
-        # don't clip highlight if it has already been done previously
-        if not os.path.exists(clipFullPath):
-            print(f"Writing {clipFullPath}")
-
-            ffmpeg_extract_subclip(
-                filmFullPath,
-                seconds,
-                seconds + HIGHLIGHT_CLIP_LENGTH,
-                targetname=clipFullPath,
-            )
-        else:
-            print(f"Skipping {clipFullPath} because it already exists")
-
-
-def traverseHighlights(highlights, traversalType, threading=True):
-    saveStorage = False
-    if traversalType == TraversalType.SAVE_STORAGE:
-        saveStorage = True
-        threading = False
-
-    mainKey, tournaments = list(highlights.items())[0]
-    mainDirectory = stringToFilename(mainKey)
-
-    # to use threading when downloading full games
-    with ThreadPoolExecutor() as executor:
-        # loop through tournaments
-        for tournament, games in tournaments.items():
-            tournamentPath = os.path.join(mainDirectory, stringToFilename(tournament))
-
-            # loop through games in tournament
-            for gameLink, timestamps in games.items():
-                gameName, gameURL = linkToGameInfo(gameLink)
-
-                gameName = stringToFilename(gameName)
-                gamePath = os.path.join(tournamentPath, gameName)
-                filmFile = f"{gameName}.mp4"
-                fullFilmPath = os.path.join(gamePath, filmFile)
-
-                if traversalType == TraversalType.CREATE_DIRS or saveStorage:
-                    if not os.path.exists(gamePath):
-                        print(f"Creating {gamePath} directory.")
-                        os.makedirs(gamePath)
-
-                if traversalType == TraversalType.DOWNLOAD_FULL_GAMES or saveStorage:
-                    # don't try to download video if it has already previously been
-                    # downloaded (yt-dlp already has this functionality but best to
-                    # avoid starting a new thread altogether)
-                    if not os.path.exists(fullFilmPath):
-                        if threading:
-                            # create and start thread to download game
-                            executor.submit(
-                                downloadVideo, gameURL, filmFile, outputPath=gamePath
-                            )
-                        else:
-                            # download game sequentially (will take much longer)
-                            downloadVideo(gameURL, filmFile, outputPath=gamePath)
-                    else:
-                        print(f"{fullFilmPath} already exists, skipping download")
-                if traversalType == TraversalType.CLIP_HIGHLIGHTS or saveStorage:
-                    # don't try to clip highlights if full game film is not in directory
-                    # (presumably due to issue with download)
-                    if os.path.exists(fullFilmPath):
-                        print(f"Clipping highlights from {fullFilmPath}:")
-                        makeClipsFromFilm(gamePath, filmFile, timestamps)
-                    else:
-                        print(
-                            f"{fullFilmPath} not found, skipping clipping highlights..."
+    def __validateJSON(self):
+        try:
+            tournaments = list(self.highlights.values())[0]
+            for tournament, games in tournaments.items():
+                for gameLink, timestamps in games.items():
+                    try:
+                        linkToGameInfo(gameLink)
+                    except ValueError:
+                        raise JSONParseError(
+                            f"{gameLink} from {tournament} is not in the right format."
+                            " Is it formatted as a markdown link correctly?"
                         )
+                    for timestamp in timestamps:
+                        try:
+                            parseTimeAndDescription(timestamp)
+                        except ValueError:
+                            raise JSONParseError(
+                                f"{timestamp} in {gameLink} from {tournament} is not"
+                                " in the right format. Did you use the correct"
+                                f' delimiter ("{CLIP_DELIMITER}") between the'
+                                " timestamp and the description?"
+                            )
+        except Exception:
+            raise JSONParseError(
+                "The JSON provided does not have the correct structure."
+                " See the previous error in the callback for more information."
+                " Otherwise, please refer to the JSON specification in the README"
+                " and try again."
+            )
 
-                if traversalType == TraversalType.DELETE_FULL_GAMES or saveStorage:
-                    filmFilePath = os.path.join(gamePath, filmFile)
-                    if os.path.exists(filmFilePath):
-                        print(f"Deleting {filmFilePath}.")
-                        os.remove(filmFilePath)
+    def traverseHighlights(self, traversalType, threading=True):
+        saveStorage = False
+        if traversalType == TraversalType.SAVE_STORAGE:
+            saveStorage = True
+            threading = False
+
+        mainKey, tournaments = list(self.highlights.items())[0]
+        mainDirectory = stringToFilename(mainKey)
+
+        # to use threading when downloading full games
+        with ThreadPoolExecutor() as executor:
+            # loop through tournaments
+            for tournament, games in tournaments.items():
+                tournamentPath = os.path.join(
+                    mainDirectory, stringToFilename(tournament)
+                )
+
+                # loop through games in tournament
+                for gameLink, timestamps in games.items():
+                    gameName, gameURL = linkToGameInfo(gameLink)
+
+                    gameName = stringToFilename(gameName)
+                    gamePath = os.path.join(tournamentPath, gameName)
+                    filmFile = f"{gameName}.mp4"
+                    fullFilmPath = os.path.join(gamePath, filmFile)
+
+                    if traversalType == TraversalType.CREATE_DIRS or saveStorage:
+                        if not os.path.exists(gamePath):
+                            print(f"Creating {gamePath} directory.")
+                            os.makedirs(gamePath)
+
+                    if (
+                        traversalType == TraversalType.DOWNLOAD_FULL_GAMES
+                        or saveStorage
+                    ):
+                        # don't try to download video if it has already previously been
+                        # downloaded (yt-dlp already has this functionality but best to
+                        # avoid starting a new thread altogether)
+                        if not os.path.exists(fullFilmPath):
+                            if threading:
+                                # create and start thread to download game
+                                executor.submit(
+                                    downloadVideo,
+                                    gameURL,
+                                    filmFile,
+                                    outputPath=gamePath,
+                                )
+                            else:
+                                # download game sequentially (will take much longer)
+                                downloadVideo(gameURL, filmFile, outputPath=gamePath)
+                        else:
+                            print(f"{fullFilmPath} already exists, skipping download")
+                    if traversalType == TraversalType.CLIP_HIGHLIGHTS or saveStorage:
+                        # don't try to clip highlights if full game film is not in directory
+                        # (presumably due to issue with download)
+                        if os.path.exists(fullFilmPath):
+                            print(f"Clipping highlights from {fullFilmPath}:")
+                            makeClipsFromFilm(gamePath, filmFile, timestamps)
+                        else:
+                            print(
+                                f"{fullFilmPath} not found, skipping clipping highlights..."
+                            )
+
+                    if traversalType == TraversalType.DELETE_FULL_GAMES or saveStorage:
+                        filmFilePath = os.path.join(gamePath, filmFile)
+                        if os.path.exists(filmFilePath):
+                            print(f"Deleting {filmFilePath}.")
+                            os.remove(filmFilePath)
 
 
 def main():
-    with open(sys.argv[1]) as f:
-        highlights = json.load(f)
+    clipper = ClipHighlights.fromFile(sys.argv[1])
 
-    # TODO: turn this into a class and have highlights be a member variable
-    traverseHighlights(highlights, TraversalType.CREATE_DIRS)
-    traverseHighlights(highlights, TraversalType.DOWNLOAD_FULL_GAMES)
-    traverseHighlights(highlights, TraversalType.CLIP_HIGHLIGHTS)
-
-    # traverseHighlights(highlights, TraversalType.SAVE_STORAGE)
+    clipper.traverseHighlights(TraversalType.CREATE_DIRS)
+    clipper.traverseHighlights(TraversalType.DOWNLOAD_FULL_GAMES)
+    clipper.traverseHighlights(TraversalType.CLIP_HIGHLIGHTS)
 
 
 if __name__ == "__main__":
