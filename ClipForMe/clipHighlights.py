@@ -1,11 +1,10 @@
 import json
 import os
-import sys
 from concurrent.futures import ThreadPoolExecutor
 
-from constants import CLIP_DELIMITER, TraversalType
-from errors import JSONParseError
-from utils import (
+from ClipForMe.constants import CLIP_DELIMITER, TraversalType
+from ClipForMe.errors import JSONParseError
+from ClipForMe.utils import (
     downloadVideo,
     linkToGameInfo,
     makeClipsFromFilm,
@@ -122,18 +121,3 @@ class ClipHighlights:
                         if os.path.exists(filmFilePath):
                             print(f"Deleting {filmFilePath}.")
                             os.remove(filmFilePath)
-
-
-def main():
-    clipper = ClipHighlights.fromFile(sys.argv[1])
-
-    clipper.traverseHighlights(TraversalType.CREATE_DIRS)
-    clipper.traverseHighlights(TraversalType.DOWNLOAD_FULL_GAMES)
-    clipper.traverseHighlights(TraversalType.CLIP_HIGHLIGHTS)
-
-
-if __name__ == "__main__":
-    if len(sys.argv) >= 2:
-        main()
-    else:
-        print(f"USAGE: python3 {sys.argv[0]} /path/to/highlights.json")

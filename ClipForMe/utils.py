@@ -1,16 +1,26 @@
 import os
 import re
 import time
+from datetime import datetime
 
+from markdown_to_json.scripts.md_to_json import jsonify_markdown
 from moviepy.video.io.ffmpeg_tools import ffmpeg_extract_subclip
 from yt_dlp import YoutubeDL
 
-from constants import (
+from ClipForMe.constants import (
     CLIP_DELIMITER,
     CLIP_NUM_WORDS,
     HIGHLIGHT_CLIP_LENGTH,
     HIGHLIGHT_CLIP_OFFSET,
 )
+
+
+def parseHighlights(markdownFile):
+    # Convert markdown highlight timestamps to JSON for easier parsing later
+    date = datetime.now().strftime("%-m-%-d-%Y")
+    jsonFile = f"highlights_{date}.json"
+    jsonify_markdown(markdownFile, jsonFile, 2)
+    print(f"{jsonFile} created in current directory.")
 
 
 def stringToFilename(str):
