@@ -1,1 +1,1 @@
-from ClipForMe.clipHighlights import ClipHighlights
+from .clipHighlights import ClipHighlights

@@ -7,3 +7,4 @@ test.py
 *.mp4
 *.m4a
 *.json
+!examples/example.json

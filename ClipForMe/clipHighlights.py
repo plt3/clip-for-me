@@ -2,9 +2,9 @@ import json
 import os
 from concurrent.futures import ThreadPoolExecutor
 
-from ClipForMe.constants import CLIP_DELIMITER, TraversalType
-from ClipForMe.errors import JSONParseError
-from ClipForMe.utils import (
+from .constants import CLIP_DELIMITER, TraversalType
+from .errors import JSONParseError
+from .utils import (
     downloadVideo,
     linkToGameInfo,
     makeClipsFromFilm,

@@ -7,7 +7,7 @@ from markdown_to_json.scripts.md_to_json import jsonify_markdown
 from moviepy.video.io.ffmpeg_tools import ffmpeg_extract_subclip
 from yt_dlp import YoutubeDL
 
-from ClipForMe.constants import (
+from .constants import (
     CLIP_DELIMITER,
     CLIP_NUM_WORDS,
     HIGHLIGHT_CLIP_LENGTH,
