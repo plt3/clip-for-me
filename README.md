@@ -19,12 +19,6 @@ NOTE: only tested on macOS
 - clone repository: run `git clone https://github.com/plt3/clip-for-me`
 - create a virtual environment for Python packages (recommended); in project directory, run `python3 -m venv venv` then `source venv/bin/activate`
 - install Python dependencies: run `pip3 install -r requirements.txt`
-- optional: fix markdown-to-json
-  - markdown-to-json package is outdated and needs a one-line fix in the source code to work with Python 3. If you don't want to do this, you can skip this part, but you will have to write the highlight timestamps directly in JSON instead of writing them in Markdown and then converting the file to JSON.
-  - to fix:
-    - find the `CommonMark.py` file within the markdown-to-json package. If you followed the steps to create a virtual environment, this should be at `venv/lib/PYTHON_VERSION/site-packages/markdown_to_json/vendor/CommonMark/CommonMark.py` where `PYTHON_VERSION` is the version of Python you have installed.
-    - change line 19 in `CommonMark.py` from `HTMLunescape = html.parser.HTMLParser().unescape` to `HTMLunescape = html.unescape`
-    - everything should work normally after this
 
 ## Usage:
 
