@@ -37,11 +37,6 @@ class ClipHighlights:
 
         self.__validateJSON()
 
-    @classmethod
-    def fromFile(cls, filePath):
-        with open(filePath) as f:
-            return cls(json.load(f))
-
     def __validateJSON(self):
         try:
             tournaments = list(self.highlights.values())[0]
