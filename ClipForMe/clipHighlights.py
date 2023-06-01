@@ -2,20 +2,39 @@ import json
 import os
 from concurrent.futures import ThreadPoolExecutor
 
-from .constants import CLIP_DELIMITER, TraversalType
+from moviepy.video.io.ffmpeg_tools import ffmpeg_extract_subclip
+
+from .constants import (
+    CLIP_DELIMITER,
+    CLIP_NUM_WORDS,
+    HIGHLIGHT_CLIP_LENGTH,
+    HIGHLIGHT_CLIP_OFFSET,
+    TraversalType,
+)
 from .errors import JSONParseError
 from .utils import (
     downloadVideo,
     linkToGameInfo,
-    makeClipsFromFilm,
     parseTimeAndDescription,
     stringToFilename,
 )
 
 
 class ClipHighlights:
-    def __init__(self, highlights):
+    def __init__(
+        self,
+        highlights,
+        clipDelimiter=CLIP_DELIMITER,
+        clipNumWords=CLIP_NUM_WORDS,
+        clipLength=HIGHLIGHT_CLIP_LENGTH,
+        clipOffset=HIGHLIGHT_CLIP_OFFSET,
+    ):
         self.highlights = highlights
+        self.clipDelimiter = clipDelimiter
+        self.clipNumWords = clipNumWords
+        self.clipLength = clipLength
+        self.clipOffset = clipOffset
+
         self.__validateJSON()
 
     @classmethod
@@ -37,12 +56,12 @@ class ClipHighlights:
                         )
                     for timestamp in timestamps:
                         try:
-                            parseTimeAndDescription(timestamp)
+                            parseTimeAndDescription(timestamp, self.clipDelimiter)
                         except ValueError:
                             raise JSONParseError(
                                 f"{timestamp} in {gameLink} from {tournament} is not"
                                 " in the right format. Did you use the correct"
-                                f' delimiter ("{CLIP_DELIMITER}") between the'
+                                f' delimiter ("{self.clipDelimiter}") between the'
                                 " timestamp and the description?"
                             )
         except Exception:
@@ -52,6 +71,32 @@ class ClipHighlights:
                 " Otherwise, please refer to the JSON specification in the README"
                 " and try again."
             )
+
+    def makeClipsFromFilm(self, outputPath, filmFilename, timestamps):
+        filmFullPath = os.path.join(outputPath, filmFilename)
+
+        for timestampStr in timestamps:
+            seconds, description = parseTimeAndDescription(
+                timestampStr, self.clipDelimiter
+            )
+            firstNDescriptionWords = " ".join(
+                description.split(" ")[: self.clipNumWords]
+            )
+            clipName = stringToFilename(firstNDescriptionWords) + ".mp4"
+            clipFullPath = os.path.join(outputPath, clipName)
+
+            # don't clip highlight if it has already been done previously
+            if not os.path.exists(clipFullPath):
+                print(f"Writing {clipFullPath}")
+
+                ffmpeg_extract_subclip(
+                    filmFullPath,
+                    seconds - self.clipOffset,
+                    seconds - self.clipOffset + self.clipLength,
+                    targetname=clipFullPath,
+                )
+            else:
+                print(f"Skipping {clipFullPath} because it already exists")
 
     def traverseHighlights(self, traversalType, threading=True):
         saveStorage = False
@@ -110,7 +155,7 @@ class ClipHighlights:
                         # (presumably due to issue with download)
                         if os.path.exists(fullFilmPath):
                             print(f"Clipping highlights from {fullFilmPath}:")
-                            makeClipsFromFilm(gamePath, filmFile, timestamps)
+                            self.makeClipsFromFilm(gamePath, filmFile, timestamps)
                         else:
                             print(
                                 f"{fullFilmPath} not found, skipping clipping highlights..."

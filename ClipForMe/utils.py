@@ -4,23 +4,16 @@ import time
 from datetime import datetime
 
 from markdown_to_json.scripts.md_to_json import jsonify_markdown
-from moviepy.video.io.ffmpeg_tools import ffmpeg_extract_subclip
 from yt_dlp import YoutubeDL
 
-from .constants import (
-    CLIP_DELIMITER,
-    CLIP_NUM_WORDS,
-    HIGHLIGHT_CLIP_LENGTH,
-    HIGHLIGHT_CLIP_OFFSET,
-)
 
-
-def parseHighlights(markdownFile):
+def convertHighlights(markdownFile, outputFile=None):
     # Convert markdown highlight timestamps to JSON for easier parsing later
-    date = datetime.now().strftime("%-m-%-d-%Y")
-    jsonFile = f"highlights_{date}.json"
-    jsonify_markdown(markdownFile, jsonFile, 2)
-    print(f"{jsonFile} created in current directory.")
+    if outputFile is None:
+        date = datetime.now().strftime("%-m-%-d-%Y")
+        outputFile = f"highlights_{date}.json"
+    jsonify_markdown(markdownFile, outputFile, 2)
+    print(f"{outputFile} created in current directory.")
 
 
 def stringToFilename(str):
@@ -77,9 +70,9 @@ def downloadVideo(url, outputFile, outputPath=""):
         )
 
 
-def parseTimeAndDescription(highlightLine):
+def parseTimeAndDescription(highlightLine, delimiter):
     # only split at the first occurrence of delimiter
-    timestamp, description = tuple(highlightLine.split(CLIP_DELIMITER, 1))
+    timestamp, description = tuple(highlightLine.split(delimiter, 1))
     timeObj = None
     seconds = 0
 
@@ -93,26 +86,3 @@ def parseTimeAndDescription(highlightLine):
     seconds += timeObj.tm_min * 60 + timeObj.tm_sec
 
     return seconds, description
-
-
-def makeClipsFromFilm(outputPath, filmFilename, timestamps):
-    filmFullPath = os.path.join(outputPath, filmFilename)
-
-    for timestampStr in timestamps:
-        seconds, description = parseTimeAndDescription(timestampStr)
-        firstNDescriptionWords = " ".join(description.split(" ")[:CLIP_NUM_WORDS])
-        clipName = stringToFilename(firstNDescriptionWords) + ".mp4"
-        clipFullPath = os.path.join(outputPath, clipName)
-
-        # don't clip highlight if it has already been done previously
-        if not os.path.exists(clipFullPath):
-            print(f"Writing {clipFullPath}")
-
-            ffmpeg_extract_subclip(
-                filmFullPath,
-                seconds - HIGHLIGHT_CLIP_OFFSET,
-                seconds - HIGHLIGHT_CLIP_OFFSET + HIGHLIGHT_CLIP_LENGTH,
-                targetname=clipFullPath,
-            )
-        else:
-            print(f"Skipping {clipFullPath} because it already exists")

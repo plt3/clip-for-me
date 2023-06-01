@@ -45,3 +45,11 @@ Repeat this process for as many games and tournaments as needed.
 See the examples directory for an example [Markdown file](examples/example.md) and corresponding [JSON file](examples/example.json) (the latter was generated with `python3 cli.py --parse-highlights examples/example.md`). If you run `python3 cli.py examples/example.json`, clip-for-me will download the YouTube videos and clip all the highlights, producing the following directory structure:
 
 ![example_results](https://github.com/plt3/clip-for-me/assets/65266160/0b3704bf-28ab-4682-804f-10725b59ac80)
+
+## TODO:
+
+- [ ] make CLI
+- [ ] write JSON specification in README
+- [ ] use JSON schema to validate highlight JSON ([tutorial](https://json-schema.org/learn/getting-started-step-by-step.html), [arbitrary keys](https://stackoverflow.com/a/69811612/14146321))
+- [ ] add type hints
+- [ ] add command to move full games into separate directory
