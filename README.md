@@ -8,7 +8,7 @@ This tool was built to automate the process of clipping individual highlights fr
 
 ## How does this work?
 
-In order to specify the timestamps of the clips to be cut into their own files, write them in a Markdown file following a specific format (see [the specification](#markdown-specification)). You can then use clip-for-me to convert the Markdown to JSON so that the script can parse it. clip-for-me will then parse the JSON file, create the proper directory hierarchy, (optionally) download all the full-game videos from YouTube, and clip all the specified timestamps from the videos and place the new files in the corresponding subdirectories.
+In order to specify the timestamps of the clips to be cut into their own files, write them in a Markdown file following a specific format (see [the specification](#specification)). You can then use clip-for-me to convert the Markdown to JSON so that the script can parse it. clip-for-me will then parse the JSON file, create the proper directory hierarchy, (optionally) download all the full-game videos from YouTube, and clip all the specified timestamps from the videos and place the new files in the corresponding subdirectories.
 
 ## Installation:
 
@@ -20,15 +20,36 @@ NOTE: only tested on macOS
 - create a virtual environment for Python packages (recommended); in project directory, run `python3 -m venv venv` then `source venv/bin/activate`
 - install Python dependencies: run `pip3 install -r requirements.txt`
 
-## Usage:
+## Quickstart:
 
-- record videos and timestamp highlights in a Markdown file following the specified format (see [the specification](#markdown-specification) for details)
-- convert the Markdown file to JSON with `python3 cli.py --parse-highlights /path/to/markdown-file.md`
+- record videos and timestamp highlights in a Markdown file following the specified format (see [the specification](#specification) for details)
+- convert the Markdown file to JSON with `python3 cli.py convert /path/to/markdown-file.md`
 - verify that the JSON file produced looks accurate
-- run `python3 cli.py /path/to/json-file.md` to create the highlight directories, download the videos from YouTube, and clip all the highlights from the videos
+- run `python3 cli.py all /path/to/json-file.json` to create the highlight directories, download the videos from YouTube, and clip all the highlights from the videos
   - this may take many minutes to run, especially if it has to download very large videos from YouTube. There should be output printed while it runs to know where the program is at
 
-## Markdown Specification:
+## More Detailed Usage:
+
+- run `python3 cli.py -h` to print help information
+- `cli.py` has 6 subcommands. View help information for each one with `python3 cli.py {subcommand} -h`
+  - `python3 cli.py convert /path/to/markdown-file.md` converts the Markdown file to JSON
+    - `-o OUTPUT_FILE`: specify output file path
+  - `python3 cli.py makedirs /path/to/json-file.json` only creates the directory structure corresponding to the JSON
+  - `python3 cli.py download /path/to/json-file.json` creates the directory structure and downloads the videos in the Markdown links from YouTube
+    - `-t`: do not use any multithreading when downloading
+  - `python3 cli.py clip /path/to/json-file.json` clips the highlights from the videos that should be already present in the directories
+    - `-d DELIMITER`: specify delimiter between timestamp and description of each highlight. Default is "- "
+    - `-n CLIP_NUM_WORDS`: specify number of words to take from the beginning of each highlight's description to make the filename of the highlight clip. Default is 4
+    - `-l CLIP_LENGTH`: specify length of each highlight clip in seconds. Default is 10
+    - `-o CLIP_OFFSET`: specify offset of each highlight clip from the marked timestamp in seconds. Default is 2
+  - `python3 cli.py all /path/to/json-file.json` creates the directories, downloads the videos, and clips the highlights from them
+    - options include those of `download` and `clip`, as well as:
+    - `-s`: download YouTube videos sequentially and delete them after clipping all the highlights from them in order to take as little disk space as possible
+  - `python3 cli.py delete /path/to/json-file.json`
+
+## Specification:
+
+### Markdown:
 
 The Markdown file should have one heading level one (#) at the top of the file, which is usually the year or season. This will be the top-level directory that will be created.
 
@@ -36,7 +57,19 @@ Below this heading should be a heading level two (##) for each tournament in the
 
 Below each of these headings should be a heading level three (###) for each game in the tournament. This heading should be a Markdown link leading to the YouTube URL of the full game film. It should look something like this: `### [some team](https://youtu.be/video-id-here):`.
 
-Below each of these headings should be the timestamps of the highlights you would like to clip from this video. These should be organized as a Markdown list with one highlight per list item. Each list item should have the timestamp (formatted as MM:SS or HH:MM:SS), a hyphen, a space, and the description of the highlight. One of these lines should look like this: `- 5:38- crazy catch by player over two defenders`. It is crucial that the correct delimiter (hyphen + space) is between each timestamp and description, otherwise the script will fail to parse each part.
+Below each of these headings should be the timestamps of the highlights you would like to clip from this video. These should be organized as a Markdown list with one highlight per list item. Each list item should have the timestamp (formatted as MM:SS or HH:MM:SS), the delimiter (default is "- ") and the description of the highlight. One of these lines should look like this: `- 5:38- crazy catch by player over two defenders`. It is crucial that the correct delimiter (hyphen + space) is between each timestamp and description, otherwise the script will fail to parse each part.
+
+Repeat this process for as many games and tournaments as needed.
+
+### JSON:
+
+The JSON specification is essentially the same as the Markdown one, since all the `convert` command does is convert the Markdown file into the corresponding JSON object.
+
+The JSON object should have a top-level key, whose value should be an object with keys for each tournament.
+
+The value of each of the tournament keys should be an object with keys for each game, which should still be formatted as a markdown link (e.g. `[some team](https://youtu.be/video-id-here):`). The colon at the end is optional.
+
+The value of each of the game keys should be an array of strings, where each string corresponds to a highlight. Each string must be in the format timestamp-delimiter-description, as described in the Markdown specification (e.g. `5:38- crazy catch by player over two defenders`).
 
 Repeat this process for as many games and tournaments as needed.
 
@@ -49,7 +82,7 @@ See the examples directory for an example [Markdown file](examples/example.md) a
 ## TODO:
 
 - [x] make CLI
-- [ ] write JSON specification in README
+- [x] write JSON specification in README
 - [ ] change print statements to logging
 - [ ] use JSON schema to validate highlight JSON ([tutorial](https://json-schema.org/learn/getting-started-step-by-step.html), [arbitrary keys](https://stackoverflow.com/a/69811612/14146321))
 - [ ] add type hints
