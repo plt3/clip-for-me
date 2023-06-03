@@ -11,7 +11,6 @@ from .constants import (
     HIGHLIGHT_CLIP_OFFSET,
     TraversalType,
 )
-from .errors import JSONParseError
 from .utils import (
     downloadVideo,
     linkToGameInfo,
@@ -52,7 +51,9 @@ class ClipHighlights:
                             "type": "array",
                             "items": {
                                 "type": "string",
-                                "pattern": rf"^(\d{{1,2}}:){{1,2}}\d{{2}}{self.clipDelimiter}.+$",
+                                # add highlight format that checks that each line
+                                # follows format that parseTimeAndDescription looks for
+                                "format": "highlight",
                             },
                         }
                     },
@@ -60,24 +61,16 @@ class ClipHighlights:
                 },
             },
         }
-        # validate highlights against schema
-        jsonschema.validate(self.highlights, schema)
+        formatChecker = jsonschema.FormatChecker()
 
-        # JSON schema can't check that highlight timestamps are actual times, so go
-        # through all highlights to make sure there are no invalid timestamps (e.g. 15:96)
-        tournaments = list(self.highlights.values())[0]
-        for tournament, games in tournaments.items():
-            for gameLink, timestamps in games.items():
-                for timestamp in timestamps:
-                    try:
-                        parseTimeAndDescription(timestamp, self.clipDelimiter)
-                    except ValueError:
-                        raise JSONParseError(
-                            f"{timestamp} in {gameLink} from {tournament} is not"
-                            " in the right format. Did you use the correct"
-                            f' delimiter ("{self.clipDelimiter}") between the'
-                            " timestamp and the description?"
-                        )
+        # check that parseTimeAndDescription doesn't raise an error for each highlight
+        @formatChecker.checks("highlight", raises=ValueError)
+        def validateHighlight(value):
+            parseTimeAndDescription(value, self.clipDelimiter)
+            return True
+
+        # validate highlights against schema
+        jsonschema.validate(self.highlights, schema, format_checker=formatChecker)
 
     def makeClipsFromFilm(self, outputPath, filmFilename, timestamps):
         filmFullPath = os.path.join(outputPath, filmFilename)

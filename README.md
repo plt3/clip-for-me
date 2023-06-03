@@ -84,6 +84,6 @@ See the examples directory for an example [Markdown file](examples/example.md) a
 - [x] make CLI
 - [x] write JSON specification in README
 - [ ] change print statements to logging
-- [ ] use JSON schema to validate highlight JSON ([tutorial](https://json-schema.org/learn/getting-started-step-by-step.html), [arbitrary keys](https://stackoverflow.com/a/69811612/14146321))
+- [x] use JSON schema to validate highlight JSON ([tutorial](https://json-schema.org/learn/getting-started-step-by-step.html), [arbitrary keys](https://stackoverflow.com/a/69811612/14146321))
 - [ ] add type hints
 - [ ] add command to move full games into separate directory

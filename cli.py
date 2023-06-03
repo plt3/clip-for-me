@@ -2,9 +2,13 @@ import argparse
 import json
 
 from ClipForMe import ClipHighlights
-from ClipForMe.constants import (CLIP_DELIMITER, CLIP_NUM_WORDS,
-                                 HIGHLIGHT_CLIP_LENGTH, HIGHLIGHT_CLIP_OFFSET,
-                                 TraversalType)
+from ClipForMe.constants import (
+    CLIP_DELIMITER,
+    CLIP_NUM_WORDS,
+    HIGHLIGHT_CLIP_LENGTH,
+    HIGHLIGHT_CLIP_OFFSET,
+    TraversalType,
+)
 from ClipForMe.utils import convertHighlights
 
 
@@ -14,8 +18,8 @@ def convertFunc(argsNamespace):
 
 def traverseFunc(argsNamespace):
     with open(argsNamespace.file) as f:
-        # if delimiter is specified, then 3 others are also
-        if hasattr(argsNamespace, "delimiter"):
+        # if clip_num_words is specified, then other two are also
+        if hasattr(argsNamespace, "clip_num_words"):
             clipObj = ClipHighlights(
                 json.load(f),
                 clipDelimiter=argsNamespace.delimiter,
@@ -24,7 +28,9 @@ def traverseFunc(argsNamespace):
                 clipOffset=argsNamespace.clip_offset,
             )
         else:
-            clipObj = ClipHighlights(json.load(f))
+            clipObj = ClipHighlights(
+                json.load(f), clipDelimiter=argsNamespace.delimiter
+            )
 
     clipObj.traverseHighlights(argsNamespace.traversalType)
 
@@ -50,35 +56,36 @@ def allFunc(argsNamespace):
         clipObj.traverseHighlights(TraversalType.CLIP_HIGHLIGHTS)
 
 
-def addClipOptions(subparser):
+def addClipOptions(subparser, justDelimiter=False):
     subparser.add_argument(
         "-d",
         "--delimiter",
         help='Delimiter between timestamp and description of each highlight (default "%(default)s")',
         default=CLIP_DELIMITER,
     )
-    subparser.add_argument(
-        "-n",
-        "--clip-num-words",
-        type=int,
-        help="Number of words to take from beginning of highlight description to"
-        " make name of file (default %(default)s)",
-        default=CLIP_NUM_WORDS,
-    )
-    subparser.add_argument(
-        "-l",
-        "--clip-length",
-        type=int,
-        help="Length of each highlight clip in seconds (default %(default)s)",
-        default=HIGHLIGHT_CLIP_LENGTH,
-    )
-    subparser.add_argument(
-        "-o",
-        "--clip-offset",
-        type=int,
-        help="Offset of each highlight clip from marked timestamp in seconds (default %(default)s)",
-        default=HIGHLIGHT_CLIP_OFFSET,
-    )
+    if not justDelimiter:
+        subparser.add_argument(
+            "-n",
+            "--clip-num-words",
+            type=int,
+            help="Number of words to take from beginning of highlight description to"
+            " make name of file (default %(default)s)",
+            default=CLIP_NUM_WORDS,
+        )
+        subparser.add_argument(
+            "-l",
+            "--clip-length",
+            type=int,
+            help="Length of each highlight clip in seconds (default %(default)s)",
+            default=HIGHLIGHT_CLIP_LENGTH,
+        )
+        subparser.add_argument(
+            "-o",
+            "--clip-offset",
+            type=int,
+            help="Offset of each highlight clip from marked timestamp in seconds (default %(default)s)",
+            default=HIGHLIGHT_CLIP_OFFSET,
+        )
 
 
 def parserSetup():
@@ -104,6 +111,7 @@ def parserSetup():
         "makedirs", help="Make directory structure representing JSON"
     )
     makeDirs.add_argument(**fileCommand)
+    addClipOptions(makeDirs, justDelimiter=True)
     makeDirs.set_defaults(traversalType=TraversalType.CREATE_DIRS, func=traverseFunc)
 
     # download subcommand
@@ -119,6 +127,7 @@ def parserSetup():
         " This may decrease performance drastically.",
         action="store_true",
     )
+    addClipOptions(download, justDelimiter=True)
     download.set_defaults(func=downloadFunc)
 
     # clip subcommand
@@ -160,6 +169,7 @@ def parserSetup():
         "delete", help="Delete full game film files listed in JSON"
     )
     delete.add_argument(**fileCommand)
+    addClipOptions(delete, justDelimiter=True)
     delete.set_defaults(
         traversalType=TraversalType.DELETE_FULL_GAMES, func=traverseFunc
     )
