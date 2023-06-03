@@ -22,9 +22,9 @@ NOTE: only tested on macOS
 
 ## Quickstart:
 
-- record videos and timestamp highlights in a Markdown file following the specified format (see [the specification](#specification) for details)
+- record videos and timestamp highlights in a Markdown file following the specified format (see [the Markdown specification](#markdown) for details)
 - convert the Markdown file to JSON with `python3 cli.py convert /path/to/markdown-file.md`
-- verify that the JSON file produced looks accurate
+- verify that the JSON file produced looks accurate (see [the JSON specification](#json) for details)
 - run `python3 cli.py all /path/to/json-file.json` to create the highlight directories, download the videos from YouTube, and clip all the highlights from the videos
   - this may take many minutes to run, especially if it has to download very large videos from YouTube. There should be output printed while it runs to know where the program is at
 
@@ -45,7 +45,7 @@ NOTE: only tested on macOS
   - `python3 cli.py all /path/to/json-file.json` creates the directories, downloads the videos, and clips the highlights from them
     - options include those of `download` and `clip`, as well as:
     - `-s`: download YouTube videos sequentially and delete them after clipping all the highlights from them in order to take as little disk space as possible
-  - `python3 cli.py delete /path/to/json-file.json`
+  - `python3 cli.py delete /path/to/json-file.json` deletes the full game videos (the ones downloaded from YouTube), but keeps all the highlight clips
 
 ## Specification:
 

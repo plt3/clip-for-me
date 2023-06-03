@@ -1,7 +1,7 @@
-import json
 import os
 from concurrent.futures import ThreadPoolExecutor
 
+import jsonschema
 from moviepy.video.io.ffmpeg_tools import ffmpeg_extract_subclip
 
 from .constants import (
@@ -38,34 +38,46 @@ class ClipHighlights:
         self.__validateJSON()
 
     def __validateJSON(self):
-        try:
-            tournaments = list(self.highlights.values())[0]
-            for tournament, games in tournaments.items():
-                for gameLink, timestamps in games.items():
+        # schema describing highlights JSON file
+        schema = {
+            "type": "object",
+            "minProperties": 1,
+            "maxProperties": 1,
+            "additionalProperties": {
+                "type": "object",
+                "additionalProperties": {
+                    "type": "object",
+                    "patternProperties": {
+                        r"^\[.+?\]\(.+?\)(:)?$": {
+                            "type": "array",
+                            "items": {
+                                "type": "string",
+                                "pattern": rf"^(\d{{1,2}}:){{1,2}}\d{{2}}{self.clipDelimiter}.+$",
+                            },
+                        }
+                    },
+                    "additionalProperties": False,
+                },
+            },
+        }
+        # validate highlights against schema
+        jsonschema.validate(self.highlights, schema)
+
+        # JSON schema can't check that highlight timestamps are actual times, so go
+        # through all highlights to make sure there are no invalid timestamps (e.g. 15:96)
+        tournaments = list(self.highlights.values())[0]
+        for tournament, games in tournaments.items():
+            for gameLink, timestamps in games.items():
+                for timestamp in timestamps:
                     try:
-                        linkToGameInfo(gameLink)
+                        parseTimeAndDescription(timestamp, self.clipDelimiter)
                     except ValueError:
                         raise JSONParseError(
-                            f"{gameLink} from {tournament} is not in the right format."
-                            " Is it formatted as a markdown link correctly?"
+                            f"{timestamp} in {gameLink} from {tournament} is not"
+                            " in the right format. Did you use the correct"
+                            f' delimiter ("{self.clipDelimiter}") between the'
+                            " timestamp and the description?"
                         )
-                    for timestamp in timestamps:
-                        try:
-                            parseTimeAndDescription(timestamp, self.clipDelimiter)
-                        except ValueError:
-                            raise JSONParseError(
-                                f"{timestamp} in {gameLink} from {tournament} is not"
-                                " in the right format. Did you use the correct"
-                                f' delimiter ("{self.clipDelimiter}") between the'
-                                " timestamp and the description?"
-                            )
-        except Exception:
-            raise JSONParseError(
-                "The JSON provided does not have the correct structure."
-                " See the previous error in the callback for more information."
-                " Otherwise, please refer to the JSON specification in the README"
-                " and try again."
-            )
 
     def makeClipsFromFilm(self, outputPath, filmFilename, timestamps):
         filmFullPath = os.path.join(outputPath, filmFilename)

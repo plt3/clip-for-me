@@ -34,17 +34,11 @@ def stringToFilename(str):
 def linkToGameInfo(linkStr):
     """Return tuple of the form (link name, link address) from Markdown link"""
 
-    titlePattern = re.compile(r"(\[)(.*?)(\])")
-    urlPattern = re.compile(r"(\()(.*?)(\))")
-    title = titlePattern.search(linkStr)
+    titleUrlPattern = re.compile(r"\[(.+?)\]\((.+?)\)")
+    match = titleUrlPattern.search(linkStr)
 
-    if title is not None:
-        secondStr = linkStr[title.end() :]
-        url = urlPattern.search(secondStr)
-        if url is not None:
-            return (title.group(2), url.group(2))
-        else:  # TODO: fix error handling
-            raise ValueError(f"Title and URL parsing failed for {linkStr}.")
+    if match is not None:
+        return (match.group(1), match.group(2))
     else:
         raise ValueError(f"Title and URL parsing failed for {linkStr}.")
 
