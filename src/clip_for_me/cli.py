@@ -1,15 +1,15 @@
 import argparse
 import json
 
-from ClipForMe import ClipHighlights
-from ClipForMe.constants import (
+from . import ClipHighlights
+from .constants import (
     CLIP_DELIMITER,
     CLIP_NUM_WORDS,
     HIGHLIGHT_CLIP_LENGTH,
     HIGHLIGHT_CLIP_OFFSET,
     TraversalType,
 )
-from ClipForMe.utils import convertHighlights
+from .utils import convertHighlights
 
 
 def convertFunc(argsNamespace):

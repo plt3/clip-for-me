@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=45", "wheel", "setuptools_scm[toml]>=6.2"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools_scm]
+write_to = "src/clip_for_me/version.py"
+
+[tool.black]
+extend-exclude = '^/src/clip_for_me/version.py'
+
+[tool.mypy]
+ignore_missing_imports = true
+python_version = "3.8"
+
+[tool.ruff]
+extend-exclude = ["docs", "venv", "^/src/clip_for_me/version.py"]
+target-version = "py38"
