@@ -35,10 +35,12 @@ NOTE: only tested on macOS
   - `python3 cli.py convert /path/to/markdown-file.md` converts the Markdown file to JSON
     - `-o OUTPUT_FILE`: specify output file path
   - `python3 cli.py makedirs /path/to/json-file.json` only creates the directory structure corresponding to the JSON
+    - `-d DELIMITER`: specify delimiter between timestamp and description of each highlight. Default is "- "
   - `python3 cli.py download /path/to/json-file.json` creates the directory structure and downloads the videos in the Markdown links from YouTube
+    - options include that of `makedirs`, as well as:
     - `-t`: do not use any multithreading when downloading
   - `python3 cli.py clip /path/to/json-file.json` clips the highlights from the videos that should be already present in the directories
-    - `-d DELIMITER`: specify delimiter between timestamp and description of each highlight. Default is "- "
+    - options include that of `makedirs`, as well as:
     - `-n CLIP_NUM_WORDS`: specify number of words to take from the beginning of each highlight's description to make the filename of the highlight clip. Default is 4
     - `-l CLIP_LENGTH`: specify length of each highlight clip in seconds. Default is 10
     - `-o CLIP_OFFSET`: specify offset of each highlight clip from the marked timestamp in seconds. Default is 2
@@ -75,7 +77,7 @@ Repeat this process for as many games and tournaments as needed.
 
 ## Examples:
 
-See the examples directory for an example [Markdown file](examples/example.md) and corresponding [JSON file](examples/example.json) (the latter was generated with `python3 cli.py --parse-highlights examples/example.md`). If you run `python3 cli.py examples/example.json`, clip-for-me will download the YouTube videos and clip all the highlights, producing the following directory structure:
+See the examples directory for an example [Markdown file](examples/example.md) and corresponding [JSON file](examples/example.json) (the latter was generated with `python3 cli.py convert examples/example.md`). If you run `python3 cli.py all examples/example.json`, clip-for-me will download the YouTube videos and clip all the highlights, producing the following directory structure:
 
 ![example_results](https://github.com/plt3/clip-for-me/assets/65266160/0b3704bf-28ab-4682-804f-10725b59ac80)
 
