@@ -16,8 +16,8 @@ NOTE: only tested on macOS
 
 - install dependencies: Python 3, ffmpeg. Both can be installed using [Homebrew](https://brew.sh/)
   - `brew install python` and `brew install ffmpeg` should work to install both
-- create a virtual environment for Python packages (recommended); in project directory, run `python3 -m venv venv` then `source --prompt clip-for-me venv/bin/activate`
-- install the package: `pip install git+https://github.com/tangentlabs/django-oscar-paypal.git`
+- create a virtual environment for Python packages (recommended); in project directory, run `python3 -m venv --prompt clip-for-me venv` then `source venv/bin/activate`
+- install the package: `pip install git+https://github.com/plt3/clip-for-me.git`
 
 The CLI is now available whenever this virtual environment is active, as `clip-for-me`.
 
@@ -32,7 +32,7 @@ The CLI is now available whenever this virtual environment is active, as `clip-f
 ## More Detailed Usage
 
 - run `clip-for-me -h` to print help information
-- `cli.py` has 6 subcommands. View help information for each one with `clip-for-me {subcommand} -h`
+- `clip-for-me` has 6 subcommands. View help information for each one with `clip-for-me {subcommand} -h`
   - `clip-for-me convert /path/to/markdown-file.md` converts the Markdown file to JSON
     - `-o OUTPUT_FILE`: specify output file path
   - `clip-for-me makedirs /path/to/json-file.json` only creates the directory structure corresponding to the JSON
