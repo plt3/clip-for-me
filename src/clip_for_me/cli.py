@@ -1,69 +1,69 @@
 import argparse
 import json
 
-from ClipForMe import ClipHighlights
-from ClipForMe.constants import (
+from . import ClipHighlights
+from .constants import (
     CLIP_DELIMITER,
     CLIP_NUM_WORDS,
     HIGHLIGHT_CLIP_LENGTH,
     HIGHLIGHT_CLIP_OFFSET,
     TraversalType,
 )
-from ClipForMe.utils import convertHighlights
+from .utils import convert_highlights
 
 
-def convertFunc(argsNamespace):
-    convertHighlights(argsNamespace.file, outputFile=argsNamespace.output_file)
+def convert_func(args_namespace):
+    convert_highlights(args_namespace.file, output_file=args_namespace.output_file)
 
 
-def traverseFunc(argsNamespace):
-    with open(argsNamespace.file) as f:
+def traverse_func(args_namespace):
+    with open(args_namespace.file) as f:
         # if clip_num_words is specified, then other two are also
-        if hasattr(argsNamespace, "clip_num_words"):
-            clipObj = ClipHighlights(
+        if hasattr(args_namespace, "clip_num_words"):
+            clip_obj = ClipHighlights(
                 json.load(f),
-                clipDelimiter=argsNamespace.delimiter,
-                clipNumWords=argsNamespace.clip_num_words,
-                clipLength=argsNamespace.clip_length,
-                clipOffset=argsNamespace.clip_offset,
+                clip_delimiter=args_namespace.delimiter,
+                clip_num_words=args_namespace.clip_num_words,
+                clip_length=args_namespace.clip_length,
+                clip_offset=args_namespace.clip_offset,
             )
         else:
-            clipObj = ClipHighlights(
-                json.load(f), clipDelimiter=argsNamespace.delimiter
+            clip_obj = ClipHighlights(
+                json.load(f), clip_delimiter=args_namespace.delimiter
             )
 
-    clipObj.traverseHighlights(argsNamespace.traversalType)
+    clip_obj.traverse_highlights(args_namespace.traversal_type)
 
-    return clipObj
+    return clip_obj
 
 
-def downloadFunc(argsNamespace):
-    setattr(argsNamespace, "traversalType", TraversalType.CREATE_DIRS)
-    clipObj = traverseFunc(argsNamespace)
-    clipObj.traverseHighlights(
-        TraversalType.DOWNLOAD_FULL_GAMES, threading=not argsNamespace.no_threading
+def download_func(args_namespace):
+    setattr(args_namespace, "traversal_type", TraversalType.CREATE_DIRS)
+    clipObj = traverse_func(args_namespace)
+    clipObj.traverse_highlights(
+        TraversalType.DOWNLOAD_FULL_GAMES, threading=not args_namespace.no_threading
     )
 
     return clipObj
 
 
-def allFunc(argsNamespace):
-    if argsNamespace.save_storage:
-        setattr(argsNamespace, "traversalType", TraversalType.SAVE_STORAGE)
-        traverseFunc(argsNamespace)
+def allFunc(args_namespace):
+    if args_namespace.save_storage:
+        setattr(args_namespace, "traversal_type", TraversalType.SAVE_STORAGE)
+        traverse_func(args_namespace)
     else:
-        clipObj = downloadFunc(argsNamespace)
-        clipObj.traverseHighlights(TraversalType.CLIP_HIGHLIGHTS)
+        clipObj = download_func(args_namespace)
+        clipObj.traverse_highlights(TraversalType.CLIP_HIGHLIGHTS)
 
 
-def addClipOptions(subparser, justDelimiter=False):
+def add_clip_options(subparser, just_delimiter=False):
     subparser.add_argument(
         "-d",
         "--delimiter",
         help='Delimiter between timestamp and description of each highlight (default "%(default)s")',
         default=CLIP_DELIMITER,
     )
-    if not justDelimiter:
+    if not just_delimiter:
         subparser.add_argument(
             "-n",
             "--clip-num-words",
@@ -88,13 +88,13 @@ def addClipOptions(subparser, justDelimiter=False):
         )
 
 
-def parserSetup():
+def parser_setup():
     parser = argparse.ArgumentParser(
         description="Download YouTube videos and clip timestamps from them by writing Markdown",
     )
     subparsers = parser.add_subparsers(title="subcommands")
 
-    fileCommand = {"dest": "file", "help": "path to JSON file"}
+    file_command = {"dest": "file", "help": "path to JSON file"}
 
     # convert subcommand
     convert = subparsers.add_parser("convert", help="Convert Markdown file to JSON")
@@ -104,22 +104,22 @@ def parserSetup():
         "--output-file",
         help="name of JSON file to store highlights in",
     )
-    convert.set_defaults(func=convertFunc)
+    convert.set_defaults(func=convert_func)
 
     # makedirs subcommand
-    makeDirs = subparsers.add_parser(
+    make_dirs = subparsers.add_parser(
         "makedirs", help="Make directory structure representing JSON"
     )
-    makeDirs.add_argument(**fileCommand)
-    addClipOptions(makeDirs, justDelimiter=True)
-    makeDirs.set_defaults(traversalType=TraversalType.CREATE_DIRS, func=traverseFunc)
+    make_dirs.add_argument(**file_command)
+    add_clip_options(make_dirs, just_delimiter=True)
+    make_dirs.set_defaults(traversal_type=TraversalType.CREATE_DIRS, func=traverse_func)
 
     # download subcommand
     download = subparsers.add_parser(
         "download",
         help="Download YouTube videos from JSON and put them in appropriate directories",
     )
-    download.add_argument(**fileCommand)
+    download.add_argument(**file_command)
     download.add_argument(
         "-t",
         "--no-threading",
@@ -127,8 +127,8 @@ def parserSetup():
         " This may decrease performance drastically.",
         action="store_true",
     )
-    addClipOptions(download, justDelimiter=True)
-    download.set_defaults(func=downloadFunc)
+    add_clip_options(download, just_delimiter=True)
+    download.set_defaults(func=download_func)
 
     # clip subcommand
     clip = subparsers.add_parser(
@@ -136,16 +136,16 @@ def parserSetup():
         help="Clip highlights from already-downloaded videos present in directories"
         " corresponding to JSON structure",
     )
-    clip.add_argument(**fileCommand)
-    addClipOptions(clip)
-    clip.set_defaults(traversalType=TraversalType.CLIP_HIGHLIGHTS, func=traverseFunc)
+    clip.add_argument(**file_command)
+    add_clip_options(clip)
+    clip.set_defaults(traversal_type=TraversalType.CLIP_HIGHLIGHTS, func=traverse_func)
 
     # all subcommand
     all = subparsers.add_parser(
         "all",
         help="Make directories, download YouTube videos, and clip highlights from JSON file",
     )
-    all.add_argument(**fileCommand)
+    all.add_argument(**file_command)
     all.add_argument(
         "-t",
         "--no-threading",
@@ -161,24 +161,24 @@ def parserSetup():
         " drastically and implies --no-threading",
         action="store_true",
     )
-    addClipOptions(all)
+    add_clip_options(all)
     all.set_defaults(func=allFunc)
 
     # delete subcommand
     delete = subparsers.add_parser(
         "delete", help="Delete full game film files listed in JSON"
     )
-    delete.add_argument(**fileCommand)
-    addClipOptions(delete, justDelimiter=True)
+    delete.add_argument(**file_command)
+    add_clip_options(delete, just_delimiter=True)
     delete.set_defaults(
-        traversalType=TraversalType.DELETE_FULL_GAMES, func=traverseFunc
+        traversal_type=TraversalType.DELETE_FULL_GAMES, func=traverse_func
     )
 
     return parser
 
 
 def main():
-    parser = parserSetup()
+    parser = parser_setup()
     args = parser.parse_args()
 
     # call appropriate function based on subcommand

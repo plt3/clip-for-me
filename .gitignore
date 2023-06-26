@@ -8,3 +8,5 @@ test.py
 *.m4a
 *.json
 !examples/example.json
+
+src/clip_for_me/version.py

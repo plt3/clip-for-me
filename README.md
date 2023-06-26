@@ -10,48 +10,49 @@ This tool was built to automate the process of clipping individual highlights fr
 
 In order to specify the timestamps of the clips to be cut into their own files, write them in a Markdown file following a specific format (see [the specification](#specification)). You can then use clip-for-me to convert the Markdown to JSON so that the script can parse it. clip-for-me will then parse the JSON file, create the proper directory hierarchy, (optionally) download all the full-game videos from YouTube, and clip all the specified timestamps from the videos and place the new files in the corresponding subdirectories.
 
-## Installation:
+## Installation
 
 NOTE: only tested on macOS
 
 - install dependencies: Python 3, ffmpeg. Both can be installed using [Homebrew](https://brew.sh/)
   - `brew install python` and `brew install ffmpeg` should work to install both
-- clone repository: run `git clone https://github.com/plt3/clip-for-me`
-- create a virtual environment for Python packages (recommended); in project directory, run `python3 -m venv venv` then `source venv/bin/activate`
-- install Python dependencies: run `pip3 install -r requirements.txt`
+- create a virtual environment for Python packages (recommended); in project directory, run `python3 -m venv venv` then `source --prompt clip-for-me venv/bin/activate`
+- install the package: `pip install git+https://github.com/tangentlabs/django-oscar-paypal.git`
 
-## Quickstart:
+The CLI is now available whenever this virtual environment is active, as `clip-for-me`.
+
+## Quickstart
 
 - record videos and timestamp highlights in a Markdown file following the specified format (see [the Markdown specification](#markdown) for details)
-- convert the Markdown file to JSON with `python3 cli.py convert /path/to/markdown-file.md`
+- convert the Markdown file to JSON with `clip-for-me convert /path/to/markdown-file.md`
 - verify that the JSON file produced looks accurate (see [the JSON specification](#json) for details)
-- run `python3 cli.py all /path/to/json-file.json` to create the highlight directories, download the videos from YouTube, and clip all the highlights from the videos
+- run `clip-for-me all /path/to/json-file.json` to create the highlight directories, download the videos from YouTube, and clip all the highlights from the videos
   - this may take many minutes to run, especially if it has to download very large videos from YouTube. There should be output printed while it runs to know where the program is at
 
-## More Detailed Usage:
+## More Detailed Usage
 
-- run `python3 cli.py -h` to print help information
-- `cli.py` has 6 subcommands. View help information for each one with `python3 cli.py {subcommand} -h`
-  - `python3 cli.py convert /path/to/markdown-file.md` converts the Markdown file to JSON
+- run `clip-for-me -h` to print help information
+- `cli.py` has 6 subcommands. View help information for each one with `clip-for-me {subcommand} -h`
+  - `clip-for-me convert /path/to/markdown-file.md` converts the Markdown file to JSON
     - `-o OUTPUT_FILE`: specify output file path
-  - `python3 cli.py makedirs /path/to/json-file.json` only creates the directory structure corresponding to the JSON
+  - `clip-for-me makedirs /path/to/json-file.json` only creates the directory structure corresponding to the JSON
     - `-d DELIMITER`: specify delimiter between timestamp and description of each highlight. Default is "- "
-  - `python3 cli.py download /path/to/json-file.json` creates the directory structure and downloads the videos in the Markdown links from YouTube
+  - `clip-for-me download /path/to/json-file.json` creates the directory structure and downloads the videos in the Markdown links from YouTube
     - options include that of `makedirs`, as well as:
     - `-t`: do not use any multithreading when downloading
-  - `python3 cli.py clip /path/to/json-file.json` clips the highlights from the videos that should be already present in the directories
+  - `clip-for-me clip /path/to/json-file.json` clips the highlights from the videos that should be already present in the directories
     - options include that of `makedirs`, as well as:
     - `-n CLIP_NUM_WORDS`: specify number of words to take from the beginning of each highlight's description to make the filename of the highlight clip. Default is 4
     - `-l CLIP_LENGTH`: specify length of each highlight clip in seconds. Default is 10
     - `-o CLIP_OFFSET`: specify offset of each highlight clip from the marked timestamp in seconds. Default is 2
-  - `python3 cli.py all /path/to/json-file.json` creates the directories, downloads the videos, and clips the highlights from them
+  - `clip-for-me all /path/to/json-file.json` creates the directories, downloads the videos, and clips the highlights from them
     - options include those of `download` and `clip`, as well as:
     - `-s`: download YouTube videos sequentially and delete them after clipping all the highlights from them in order to take as little disk space as possible
-  - `python3 cli.py delete /path/to/json-file.json` deletes the full game videos (the ones downloaded from YouTube), but keeps all the highlight clips
+  - `clip-for-me delete /path/to/json-file.json` deletes the full game videos (the ones downloaded from YouTube), but keeps all the highlight clips
 
-## Specification:
+## Specification
 
-### Markdown:
+### Markdown
 
 The Markdown file should have one heading level one (#) at the top of the file, which is usually the year or season. This will be the top-level directory that will be created.
 
@@ -63,7 +64,7 @@ Below each of these headings should be the timestamps of the highlights you woul
 
 Repeat this process for as many games and tournaments as needed.
 
-### JSON:
+### JSON
 
 The JSON specification is essentially the same as the Markdown one, since all the `convert` command does is convert the Markdown file into the corresponding JSON object.
 
@@ -75,13 +76,13 @@ The value of each of the game keys should be an array of strings, where each str
 
 Repeat this process for as many games and tournaments as needed.
 
-## Examples:
+## Examples
 
-See the examples directory for an example [Markdown file](examples/example.md) and corresponding [JSON file](examples/example.json) (the latter was generated with `python3 cli.py convert examples/example.md`). If you run `python3 cli.py all examples/example.json`, clip-for-me will download the YouTube videos and clip all the highlights, producing the following directory structure:
+See the examples directory for an example [Markdown file](examples/example.md) and corresponding [JSON file](examples/example.json) (the latter was generated with `clip-for-me convert examples/example.md`). If you run `clip-for-me all examples/example.json`, clip-for-me will download the YouTube videos and clip all the highlights, producing the following directory structure:
 
 ![example_results](https://github.com/plt3/clip-for-me/assets/65266160/0b3704bf-28ab-4682-804f-10725b59ac80)
 
-## TODO:
+## TODO
 
 - [x] make CLI
 - [x] write JSON specification in README
